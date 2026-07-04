@@ -215,8 +215,9 @@ async function submitApplication(req, res) {
         const title = '有新的公出审批待处理';
         const content = `申请人：${applicant?.name || '未知'}\n公出事由：${app.reason}\n公出地点：${location?.name || '未知'}\n出行人数：${app.person_count}人\n报销金额：¥${app.amount || 0}\n\n点击详情查看并审批`;
         // 使用环境变量中的前端地址，确保与钉钉开放平台配置的"移动端首页地址"一致
+        // 注意：已改为history模式，URL中不再包含 # 符号
         const frontendUrl = process.env.FRONTEND_URL || 'https://wzyyxx.cloud';
-        const targetUrl = `${frontendUrl}/#/approval-detail?id=${app.id}`;
+        const targetUrl = `${frontendUrl}/approval-detail?id=${app.id}`;
         // 直接使用HTTPS地址，不使用dingtalk://协议
         const messageUrl = targetUrl;
         
