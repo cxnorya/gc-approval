@@ -7,11 +7,15 @@ const dingTalkService = new DingTalkService(
 );
 
 // 生成钉钉跳转URL
+// 根据钉钉官方文档，对于H5微应用：
+// - 直接使用完整的HTTPS地址（确保该域名在"安全域名"白名单中）
+// - 不要使用 dingtalk:// 协议（会被识别为外部网页）
+// - 确保URL与钉钉开放平台配置的"移动端首页地址"完全一致
+
 function generateDingTalkUrl(targetUrl) {
-  const corpId = process.env.DINGTALK_CORP_ID;
-  const agentId = process.env.DINGTALK_AGENT_ID;
-  const encodedUrl = encodeURIComponent(targetUrl);
-  return `dingtalk://dingtalkclient/action/openapp?corpid=${corpId}&container_type=work_platform&app_id=0_${agentId}&redirect_type=jump&redirect_url=${encodedUrl}`;
+  // 直接使用传入的URL，不做任何协议转换
+  // 调用方需要确保传入的是正确的HTTPS地址
+  return targetUrl;
 }
 
 async function sendApprovalNotification(userId, title, content, messageUrl = null) {
@@ -210,9 +214,11 @@ async function submitApplication(req, res) {
       if (approver) {
         const title = '有新的公出审批待处理';
         const content = `申请人：${applicant?.name || '未知'}\n公出事由：${app.reason}\n公出地点：${location?.name || '未知'}\n出行人数：${app.person_count}人\n报销金额：¥${app.amount || 0}\n\n点击详情查看并审批`;
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        // 使用环境变量中的前端地址，确保与钉钉开放平台配置的"移动端首页地址"一致
+        const frontendUrl = process.env.FRONTEND_URL || 'https://wzyyxx.cloud';
         const targetUrl = `${frontendUrl}/#/approval-detail?id=${app.id}`;
-        const messageUrl = generateDingTalkUrl(targetUrl);
+        // 直接使用HTTPS地址，不使用dingtalk://协议
+        const messageUrl = targetUrl;
         
         // 发送工作通知
         sendApprovalNotification(approver.id, title, content, messageUrl);
