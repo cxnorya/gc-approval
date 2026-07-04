@@ -229,8 +229,10 @@ const showApproveDialog = async (id) => {
       cancelButtonText: '取消'
     })
     
+    console.log('approve - 调用API, id:', id, 'userId:', userId)
     const apiResult = await approvalAPI.approve(id, { comment: '同意', approver_id: userId })
-
+    console.log('approve - API返回:', apiResult)
+    
     if (apiResult.success) {
       showToast('审批通过')
       window.dispatchEvent(new Event('approval-changed'))
@@ -247,9 +249,10 @@ const showApproveDialog = async (id) => {
       showToast(apiResult.message || '审批失败')
     }
   } catch (error) {
-    if (error === 'cancel') return
+    if (error === 'cancel' || error?.action === 'cancel') return
     console.error('审批失败:', error)
-    showToast('审批失败')
+    console.error('  错误详情:', error?.response?.data || error.message || error)
+    showToast(error?.response?.data?.message || error?.message || '审批失败')
   }
 }
 
@@ -265,7 +268,9 @@ const confirmReject = async () => {
   }
   
   try {
+    console.log('reject - 调用API, id:', currentRejectId.value)
     const result = await approvalAPI.reject(currentRejectId.value, { reason: rejectReason.value, approver_id: userId })
+    console.log('reject - API返回:', result)
     if (result.success) {
       showToast('已驳回')
       window.dispatchEvent(new Event('approval-changed'))
@@ -283,8 +288,10 @@ const confirmReject = async () => {
       pollUntilApproved(id)
     }
   } catch (error) {
+    if (error === 'cancel' || error?.action === 'cancel') return
     console.error('驳回失败:', error)
-    showToast('驳回失败')
+    console.error('  错误详情:', error?.response?.data || error.message || error)
+    showToast(error?.response?.data?.message || error?.message || '驳回失败')
   }
 }
 
