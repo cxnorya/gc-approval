@@ -1,4 +1,4 @@
-﻿﻿const axios = require('axios');
+﻿const axios = require('axios');
 
 const DINGTALK_BASE_URL = 'https://oapi.dingtalk.com';
 
@@ -316,7 +316,7 @@ class DingTalkService {
     return response.data;
   }
 
-  // 旧版钉钉待办接口（创建）- 兼容 `applicationController.js` 调用
+  // 旧版钉钉待办接口（创建）- 修正为包含 tasks 数组
   async createTodoTaskLegacy(processInstanceId, userId, title, url, description = '') {
     try {
       const token = await this.getAccessToken();
@@ -324,14 +324,18 @@ class DingTalkService {
         'https://oapi.dingtalk.com/topapi/process/workrecord/task/create',
         {
           request: {
-            process_instance_id: processInstanceId,
-            activity_id: 'approval',
-            manager: userId,
-            formItemList: [
-              { title: '标题', content: title },
-              { title: '详情', content: description || '请点击查看并处理' }
-            ],
-            url: url
+            tasks: [
+              {
+                process_instance_id: processInstanceId,
+                activity_id: 'approval',
+                manager: userId,
+                formItemList: [
+                  { title: '标题', content: title },
+                  { title: '详情', content: description || '请点击查看并处理' }
+                ],
+                url: url
+              }
+            ]
           }
         },
         {
@@ -352,7 +356,7 @@ class DingTalkService {
     }
   }
 
-  // 旧版钉钉待办接口（更新状态）- 兼容 `applicationController.js` 调用
+  // 旧版钉钉待办接口（更新状态）
   async updateTodoTaskLegacy(processInstanceId, status = 'completed') {
     try {
       const token = await this.getAccessToken();
