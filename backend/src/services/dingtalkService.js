@@ -330,11 +330,11 @@ class DingTalkService {
         isDone
       });
       
-      const response = await axios.patch(
+      const response = await axios.put(
         `https://api.dingtalk.com/v1.0/todo/users/${unionId}/tasks/${taskId}`,
         {
-          isDone: isDone,
-          status: isDone ? 1 : 0
+          done: isDone,
+          finishTime: isDone ? Date.now() : 0
         },
         {
           headers: {
