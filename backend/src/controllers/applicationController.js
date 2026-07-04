@@ -1,7 +1,7 @@
 ﻿﻿const db = require('../models');
 const DingTalkService = require('../services/dingtalkService');
 
-const dingTalkService = new DingTalkService(
+const dingTalkService = new DingTalkService(submitApplication
   process.env.DINGTALK_APP_KEY,
   process.env.DINGTALK_APP_SECRET
 );
@@ -218,26 +218,32 @@ async function submitApplication(req, res) {
         sendApprovalNotification(approver.id, title, content, messageUrl);
         
         // 创建钉钉待办任务（不阻塞提交）
-        if (approver.dingtalk_userid) {
-          (async () => {
-            try {
-              // 使用申请ID作为 process_instance_id，审批人钉钉userId，标题，跳转URL，内容描述
-              const todoResult = await dingTalkService.createTodoTaskLegacy(
-                app.id.toString(),              // processInstanceId
-                approver.dingtalk_userid,       // userId (审批人)
-                title,                          // 待办标题
-                targetUrl,                      // 跳转URL
-                content                         // 描述信息
-              );
-              if (todoResult && todoResult.id) {
-                // 保存待办任务ID到申请记录（如果有这个字段）
-                await db.Application.update(id, { dingtalk_task_id: todoResult.id });
-              }
-            } catch (todoError) {
-              console.warn('创建钉钉待办失败:', todoError.message);
+       // 创建钉钉待办任务（新版接口）
+if (approver.dingtalk_userid) {
+    (async () => {
+        try {
+            // 获取审批人的 unionId（新版接口需要）
+            const userDetail = await dingTalkService.getUserDetail(approver.dingtalk_userid);
+            const unionId = userDetail && userDetail.unionid;
+            if (!unionId) {
+                console.warn('无法获取审批人 unionId，跳过待办创建');
+                return;
             }
-          })();
+            const todoResult = await dingTalkService.createTodoTask(
+                unionId,                           // 审批人 unionId
+                title,                             // 待办标题
+                content,                           // 描述
+                [approver.dingtalk_userid],        // 执行者 userId 列表（数组）
+                targetUrl                          // 跳转链接
+            );
+            if (todoResult && todoResult.id) {
+                await db.Application.update(id, { dingtalk_task_id: todoResult.id });
+            }
+        } catch (todoError) {
+            console.warn('创建钉钉待办失败:', todoError.message);
         }
+    })();
+}
       }
     }
     
