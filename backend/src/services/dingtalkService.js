@@ -316,7 +316,7 @@ class DingTalkService {
     return response.data;
   }
 
-  // 旧版钉钉待办接口（创建）- 修正为包含 tasks 数组
+  // 旧版钉钉待办接口（创建）- 修正为正确的 request 结构（直接使用 request 对象）
   async createTodoTaskLegacy(processInstanceId, userId, title, url, description = '') {
     try {
       const token = await this.getAccessToken();
@@ -324,18 +324,14 @@ class DingTalkService {
         'https://oapi.dingtalk.com/topapi/process/workrecord/task/create',
         {
           request: {
-            tasks: [
-              {
-                process_instance_id: processInstanceId,
-                activity_id: 'approval',
-                manager: userId,
-                formItemList: [
-                  { title: '标题', content: title },
-                  { title: '详情', content: description || '请点击查看并处理' }
-                ],
-                url: url
-              }
-            ]
+            process_instance_id: processInstanceId,
+            activity_id: 'approval',
+            manager: userId,
+            formItemList: [
+              { title: '标题', content: title },
+              { title: '详情', content: description || '请点击查看并处理' }
+            ],
+            url: url
           }
         },
         {
