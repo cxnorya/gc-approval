@@ -199,6 +199,21 @@ async function updateUserRole(req, res) {
   }
 }
 
+// 钉钉内免登：返回 dd.config() 所需的签名配置
+async function getDingTalkConfig(req, res) {
+  const { url } = req.query;
+  if (!url) {
+    return res.status(400).json({ success: false, message: '缺少 url 参数' });
+  }
+  try {
+    const config = await dingTalkService.getDingTalkConfig(url);
+    res.json({ success: true, data: config });
+  } catch (error) {
+    console.error('获取钉钉配置失败:', error);
+    res.status(500).json({ success: false, message: '获取配置失败', error: error.message });
+  }
+}
+
 // 钉钉扫码登录（PC 端二维码扫码）
 async function dingtalkQrLogin(req, res) {
   const { code } = req.body;
@@ -255,4 +270,4 @@ async function dingtalkQrLogin(req, res) {
   }
 }
 
-module.exports = { login, dingtalkLogin, dingtalkQrLogin, getUserInfo, logout, getUsers, updateUserRole };
+module.exports = { login, dingtalkLogin, getDingTalkConfig, dingtalkQrLogin, getUserInfo, logout, getUsers, updateUserRole };

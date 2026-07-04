@@ -75,6 +75,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Button, showToast } from 'vant'
 import NavBar from '../components/NavBar.vue'
+import api from '../api'
 import { login, dingtalkLogin, dingtalkQrLogin } from '../api'
 
 const router = useRouter()
@@ -108,6 +109,62 @@ const isInDingTalk = () => {
 }
 
 // ========== 钉钉内免登 ==========
+// 初始化钉钉 JS API（必须先调 dd.config()）
+const initDingTalk = async () => {
+  try {
+    showToast({ message: '正在初始化...', type: 'loading', duration: 0 })
+    // 1. 获取签名配置
+    const configRes = await api.get('/auth/dingtalk-config', {
+      params: { url: window.location.href.split('#')[0] }
+    })
+    if (!configRes.success) {
+      showToast.clear()
+      showToast('获取钉钉配置失败')
+      return false
+    }
+    const cfg = configRes.data
+    // 2. 调 dd.config()
+    await new Promise((resolve, reject) => {
+      window.dd.config({
+        agentId: cfg.agentId,
+        corpId: cfg.corpId,
+        timeStamp: cfg.timeStamp,
+        nonceStr: cfg.nonceStr,
+        signature: cfg.signature,
+        jsApiList: ['runtime.permission.requestAuthCode']
+      })
+      window.dd.ready(() => {
+        console.log('dd.ready 成功')
+        resolve()
+      })
+      window.dd.error((err) => {
+        console.error('dd.config 失败:', err)
+        reject(err)
+      })
+    })
+    showToast.clear()
+    return true
+  } catch (e) {
+    showToast.clear()
+    console.error('钉钉初始化失败:', e)
+    return false
+  }
+}
+
+// 请求钉钉授权码并登录
+const doDingTalkLogin = () => {
+  window.dd.runtime.permission.requestAuthCode({
+    corpId: DINGTALK_CORP_ID,
+    onSuccess: (result) => {
+      if (result.code) doLoginWithCode(result.code)
+    },
+    onFail: (err) => {
+      console.error('requestAuthCode 失败:', err)
+      showToast('获取钉钉授权失败，请重试')
+    }
+  })
+}
+
 const doLoginWithCode = async (authCode) => {
   try {
     showToast({ message: '正在登录...', type: 'loading', duration: 0 })
@@ -129,24 +186,14 @@ const doLoginWithCode = async (authCode) => {
   }
 }
 
-const handleDingtalkLogin = () => {
+// 点击"钉钉免登"按钮
+const handleDingtalkLogin = async () => {
   if (!isInDingTalk()) {
     showToast('请在钉钉中打开应用')
     return
   }
-  if (window.dd && window.dd.runtime) {
-    window.dd.ready(() => {
-      window.dd.runtime.permission.requestAuthCode({
-        corpId: DINGTALK_CORP_ID,
-        onSuccess: (result) => {
-          if (result.code) doLoginWithCode(result.code)
-        },
-        onFail: (err) => {
-          console.error('requestAuthCode failed:', err)
-        }
-      })
-    })
-  }
+  const ok = await initDingTalk()
+  if (ok) doDingTalkLogin()
 }
 
 // ========== 账号登录 ==========
@@ -240,11 +287,11 @@ onMounted(() => {
     return
   }
 
-  // 检查是否是钉钉内应用回调（钉钉内免登）
-  const authCode = getUrlParam('code')
-  if (authCode && isInDingTalk()) {
-    doLoginWithCode(authCode)
-    return
+  // 钉钉内：自动初始化并免登
+  if (isInDingTalk()) {
+    initDingTalk().then(ok => {
+      if (ok) doDingTalkLogin()
+    })
   }
 
   // 检查是否是扫码登录回调（来自钉钉 OAuth2 重定向）

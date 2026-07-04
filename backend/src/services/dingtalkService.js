@@ -1,4 +1,5 @@
 ﻿const axios = require('axios');
+const crypto = require('crypto');
 
 const DINGTALK_BASE_URL = 'https://oapi.dingtalk.com';
 
@@ -497,12 +498,43 @@ class DingTalkService {
     }, { params });
 
     const result = response.data;
-
+    
     if (result.errcode !== 0) {
       throw new Error(`发送工作通知失败: ${result.errmsg}`);
     }
-
+    
     return result;
+  }
+
+  // 获取钉钉 JS API Ticket（用于 dd.config() 签名）
+  async getJsApiTicket() {
+    const accessToken = await this.getAccessToken();
+    const params = { access_token: accessToken };
+    const response = await dingtalkAxios.get('/get_jsapi_ticket', { params });
+    const result = response.data;
+    if (result.errcode !== 0) {
+      throw new Error(`获取 jsapi_ticket 失败: ${result.errmsg}`);
+    }
+    return result.ticket;
+  }
+
+  // 生成 dd.config() 所需的配置参数
+  // url 必须是调用 dd.config() 的页面 URL（去掉 # 后面的部分）
+  async getDingTalkConfig(url) {
+    const ticket = await this.getJsApiTicket();
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const nonceStr = Math.random().toString(36).substring(2, 15);
+    // 钉钉要求 url 不包含 # 及其后面部分
+    const cleanUrl = url.split('#')[0];
+    const plain = `jsapi_ticket=${ticket}&noncestr=${nonceStr}&timestamp=${timestamp}&url=${cleanUrl}`;
+    const signature = crypto.createHash('sha1').update(plain).digest('hex');
+    return {
+      agentId: process.env.DINGTALK_AGENT_ID || '',
+      corpId: process.env.DINGTALK_CORP_ID || '',
+      timeStamp: timestamp,
+      nonceStr: nonceStr,
+      signature: signature
+    };
   }
 }
 
