@@ -268,33 +268,54 @@ class DingTalkService {
 
   // 新版钉钉待办接口（创建）
   async createTodoTask(unionId, subject, description, executorIds, detailUrl) {
-    const accessToken = await this.getNewAccessToken();
-
-    const response = await axios.post(
-      `https://api.dingtalk.com/v1.0/todo/users/${unionId}/tasks`,
-      {
-        sourceId: `approval_${Date.now()}`,
-        subject: subject,
-        description: description,
-        executorIds: executorIds,
-        detailUrl: {
-          appUrl: detailUrl,
-          pcUrl: detailUrl
+    try {
+      const accessToken = await this.getNewAccessToken();
+      
+      // 添加请求日志
+      console.log('创建钉钉待办任务:', {
+        unionId,
+        subject,
+        executorIds,
+        detailUrl: detailUrl ? '已设置' : '未设置'
+      });
+      
+      const response = await axios.post(
+        `https://api.dingtalk.com/v1.0/todo/users/${unionId}/tasks`,
+        {
+          sourceId: `approval_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // 避免重复
+          subject: subject,
+          description: description,
+          executorIds: executorIds,
+          detailUrl: {
+            appUrl: detailUrl,
+            pcUrl: detailUrl
+          }
+        },
+        {
+          headers: {
+            'x-acs-dingtalk-access-token': accessToken,
+            'Content-Type': 'application/json'
+          }
         }
-      },
-      {
-        headers: {
-          'x-acs-dingtalk-access-token': accessToken,
-          'Content-Type': 'application/json'
-        }
+      );
+      
+      console.log('钉钉待办创建成功:', response.data);
+      
+      if (response.data && response.data.code !== undefined && response.data.code !== 0) {
+        throw new Error(`创建待办任务失败: ${response.data.message || '未知错误'}`);
       }
-    );
-
-    if (response.data && response.data.code !== undefined && response.data.code !== 0) {
-      throw new Error(`创建待办任务失败: ${response.data.message || '未知错误'}`);
+      
+      return response.data;
+    } catch (error) {
+      // 详细错误日志
+      console.error('创建钉钉待办失败:');
+      console.error('  错误信息:', error.message);
+      if (error.response) {
+        console.error('  响应状态:', error.response.status);
+        console.error('  响应数据:', JSON.stringify(error.response.data, null, 2));
+      }
+      throw error;
     }
-
-    return response.data;
   }
 
   // 新版钉钉待办接口（更新状态）

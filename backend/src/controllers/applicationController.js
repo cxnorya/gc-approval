@@ -1,7 +1,7 @@
 ﻿﻿const db = require('../models');
 const DingTalkService = require('../services/dingtalkService');
 
-const dingTalkService = new DingTalkService(submitApplication
+const dingTalkService = new DingTalkService(
   process.env.DINGTALK_APP_KEY,
   process.env.DINGTALK_APP_SECRET
 );
@@ -218,22 +218,25 @@ async function submitApplication(req, res) {
         sendApprovalNotification(approver.id, title, content, messageUrl);
         
         // 创建钉钉待办任务（不阻塞提交）
-       // 创建钉钉待办任务（新版接口）
+        // 创建钉钉待办任务（新版接口）
 if (approver.dingtalk_userid) {
     (async () => {
         try {
             // 获取审批人的 unionId（新版接口需要）
             const userDetail = await dingTalkService.getUserDetail(approver.dingtalk_userid);
+            console.log('审批人详情:', userDetail); // 添加日志
             const unionId = userDetail && userDetail.unionid;
             if (!unionId) {
                 console.warn('无法获取审批人 unionId，跳过待办创建');
+                console.warn('  审批人 userId:', approver.dingtalk_userid);
+                console.warn('  用户详情:', userDetail);
                 return;
             }
             const todoResult = await dingTalkService.createTodoTask(
                 unionId,                           // 审批人 unionId
                 title,                             // 待办标题
                 content,                           // 描述
-                [approver.dingtalk_userid],        // 执行者 userId 列表（数组）
+                [unionId],                         // ✅ 正确：传 unionId 数组
                 targetUrl                          // 跳转链接
             );
             if (todoResult && todoResult.id) {
