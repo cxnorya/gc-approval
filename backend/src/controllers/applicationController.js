@@ -1,4 +1,4 @@
-﻿const db = require('../models');
+﻿﻿const db = require('../models');
 const DingTalkService = require('../services/dingtalkService');
 
 const dingTalkService = new DingTalkService(
@@ -48,6 +48,7 @@ function fixAttachmentEncoding(attachments) {
     });
   } catch (e) { return attachments; }
 }
+
 async function createApplication(req, res) {
   const { applicant_id, approver_id, apply_date, travel_date, reason, location_id, person_count, attachments } = req.body;
   
@@ -202,7 +203,7 @@ async function submitApplication(req, res) {
     const app = await db.Application.findById(id);
     if (app) {
       app.attachments = fixAttachmentEncoding(app.attachments);
-    const applicant = await db.User.findById(app.applicant_id);
+      const applicant = await db.User.findById(app.applicant_id);
       const approver = await db.User.findById(app.approver_id);
       const location = await db.Location.findById(app.location_id);
       
@@ -213,24 +214,24 @@ async function submitApplication(req, res) {
         const targetUrl = `${frontendUrl}/#/approval-detail?id=${app.id}`;
         const messageUrl = generateDingTalkUrl(targetUrl);
         
+        // 发送工作通知
         sendApprovalNotification(approver.id, title, content, messageUrl);
         
-        // 异步创建钉钉待办任务（不阻塞提交）
+        // 创建钉钉待办任务（不阻塞提交）
         if (approver.dingtalk_userid) {
           (async () => {
             try {
-              const userDetail = await dingTalkService.getUserDetail(approver.dingtalk_userid);
-              if (userDetail && userDetail.unionid) {
-                const todoResult = await dingTalkService.createTodoTask(
-                  userDetail.unionid,
-                  title,
-                  content,
-                  [approver.dingtalk_userid],
-                  targetUrl
-                );
-                if (todoResult && todoResult.id) {
-                  await db.Application.update(id, { dingtalk_task_id: todoResult.id });
-                }
+              // 使用申请ID作为 process_instance_id，审批人钉钉userId，标题，跳转URL，内容描述
+              const todoResult = await dingTalkService.createTodoTask(
+                app.id.toString(),              // processInstanceId
+                approver.dingtalk_userid,       // userId (审批人)
+                title,                          // 待办标题
+                targetUrl,                      // 跳转URL
+                content                         // 描述信息
+              );
+              if (todoResult && todoResult.id) {
+                // 保存待办任务ID到申请记录（如果有这个字段）
+                await db.Application.update(id, { dingtalk_task_id: todoResult.id });
               }
             } catch (todoError) {
               console.warn('创建钉钉待办失败:', todoError.message);

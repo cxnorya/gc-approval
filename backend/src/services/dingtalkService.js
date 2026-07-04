@@ -373,6 +373,80 @@ class DingTalkService {
       );
       return response.data;
     }
+/**
+ * 创建钉钉待办任务
+ * @param {string} processInstanceId - 你们的审批单ID（唯一）
+ * @param {string} userId - 审批人的钉钉userId
+ * @param {string} title - 待办标题
+ * @param {string} url - 点击待办跳转的链接
+ * @param {string} description - 可选描述
+ */
+async createTodoTask(processInstanceId, userId, title, url, description = '') {
+    try {
+        const token = await this.getAccessToken();
+        const response = await axios.post(
+            'https://oapi.dingtalk.com/topapi/process/workrecord/task/create',
+            {
+                process_instance_id: processInstanceId,
+                activity_id: 'approval', // 固定，表示审批任务
+                manager: userId,
+                // 如果需要显示表单信息，可以用 formItemList
+                formItemList: [
+                    { title: '标题', content: title },
+                    { title: '详情', content: description || '请点击查看并处理' }
+                ],
+                // 待办跳转地址（移动端和PC端自适应）
+                url: url
+            },
+            {
+                params: { access_token: token }
+            }
+        );
+
+        if (response.data.errcode === 0) {
+            console.log(`✅ 待办创建成功: ${processInstanceId} -> ${userId}`);
+            return response.data;
+        } else {
+            console.error('❌ 创建待办失败:', response.data);
+            throw new Error(response.data.errmsg);
+        }
+    } catch (error) {
+        console.error('❌ 调用待办创建API失败:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * 更新待办任务状态（例如标记已完成）
+ * @param {string} processInstanceId - 审批单ID
+ * @param {string} status - 'completed' 或 'canceled'
+ */
+async updateTodoTask(processInstanceId, status = 'completed') {
+    try {
+        const token = await this.getAccessToken();
+        const response = await axios.post(
+            'https://oapi.dingtalk.com/topapi/process/workrecord/update',
+            {
+                process_instance_id: processInstanceId,
+                status: status
+            },
+            {
+                params: { access_token: token }
+            }
+        );
+
+        if (response.data.errcode === 0) {
+            console.log(`✅ 待办更新成功: ${processInstanceId} -> ${status}`);
+        } else {
+            console.error('❌ 更新待办失败:', response.data);
+            throw new Error(response.data.errmsg);
+        }
+        return response.data;
+    } catch (error) {
+        console.error('❌ 调用待办更新API失败:', error.message);
+        throw error;
+    }
+}
 }
 
  module.exports = DingTalkService;
