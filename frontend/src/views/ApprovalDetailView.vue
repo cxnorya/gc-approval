@@ -311,19 +311,29 @@ const loadDetail = async () => {
 const showApproveConfirm = async () => {
   try {
     await showConfirmDialog({ title: '确认通过', message: '确认要通过此申请吗？', confirmButtonText: '通过', cancelButtonText: '取消' })
+    console.log('[审批详情] 开始审批通过, id=', application.value.id)
     const result = await approvalAPI.approve(application.value.id, { comment: '同意', approver_id: userId })
-    if (result.success) { showToast.success('审批通过'); loadDetail() }
+    console.log('[审批详情] 审批通过返回:', result)
+    if (result.success) { showToast({ message: '审批通过', type: 'success' }); loadDetail() }
     else { showToast(result.message || '审批失败') }
-  } catch (err) { if (err !== 'cancel') { console.error('审批失败:', err); showToast('审批失败') } }
+  } catch (err) {
+    // Vant 4 取消对话框时 err = { action: 'cancel' }，不是字符串 'cancel'
+    if (err && err.action !== 'cancel') {
+      console.error('[审批详情] 审批异常:', err)
+      showToast('审批失败')
+    }
+  }
 }
 
 const confirmReject = async () => {
   if (!rejectReason.value) { showToast('请输入驳回原因'); return }
   try {
+    console.log('[审批详情] 开始驳回, id=', application.value.id)
     const result = await approvalAPI.reject(application.value.id, { reason: rejectReason.value, approver_id: userId })
-    if (result.success) { showToast.success('已驳回'); showRejectModal.value = false; rejectReason.value = ''; loadDetail() }
+    console.log('[审批详情] 驳回返回:', result)
+    if (result.success) { showToast({ message: '已驳回', type: 'success' }); showRejectModal.value = false; rejectReason.value = ''; loadDetail() }
     else { showToast(result.message || '驳回失败') }
-  } catch (err) { console.error('驳回失败:', err); showToast('驳回失败') }
+  } catch (err) { console.error('[审批详情] 驳回异常:', err); showToast('驳回失败') }
 }
 
 const goBack = () => { router.back() }
