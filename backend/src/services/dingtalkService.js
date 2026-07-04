@@ -320,21 +320,44 @@ class DingTalkService {
 
   // 新版钉钉待办接口（更新状态）
   async updateTodoTask(unionId, taskId, isDone) {
-    const accessToken = await this.getNewAccessToken();
-    const response = await axios.patch(
-      `https://api.dingtalk.com/v1.0/todo/users/${unionId}/tasks/${taskId}`,
-      {
-        isDone: isDone,
-        status: isDone ? 1 : 0
-      },
-      {
-        headers: {
-          'x-acs-dingtalk-access-token': accessToken,
-          'Content-Type': 'application/json'
+    try {
+      const accessToken = await this.getNewAccessToken();
+      
+      // 添加请求日志
+      console.log('更新钉钉待办状态:', {
+        unionId,
+        taskId,
+        isDone
+      });
+      
+      const response = await axios.patch(
+        `https://api.dingtalk.com/v1.0/todo/users/${unionId}/tasks/${taskId}`,
+        {
+          isDone: isDone,
+          status: isDone ? 1 : 0
+        },
+        {
+          headers: {
+            'x-acs-dingtalk-access-token': accessToken,
+            'Content-Type': 'application/json'
+          }
         }
+      );
+      
+      console.log('钉钉待办状态更新成功:', response.data);
+      
+      return response.data;
+    } catch (error) {
+      // 详细错误日志
+      console.error('更新钉钉待办状态失败:');
+      console.error('  错误信息:', error.message);
+      console.error('  参数: unionId=' + unionId + ', taskId=' + taskId + ', isDone=' + isDone);
+      if (error.response) {
+        console.error('  响应状态:', error.response.status);
+        console.error('  响应数据:', JSON.stringify(error.response.data, null, 2));
       }
-    );
-    return response.data;
+      throw error;
+    }
   }
 
   // 旧版钉钉待办接口（创建）- 修正为正确的 request 结构（直接使用 request 对象）
