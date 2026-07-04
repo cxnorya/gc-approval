@@ -222,7 +222,7 @@ async function submitApplication(req, res) {
           (async () => {
             try {
               // 使用申请ID作为 process_instance_id，审批人钉钉userId，标题，跳转URL，内容描述
-              const todoResult = await dingTalkService.createTodoTask(
+              const todoResult = await dingTalkService.createTodoTaskLegacy(
                 app.id.toString(),              // processInstanceId
                 approver.dingtalk_userid,       // userId (审批人)
                 title,                          // 待办标题
