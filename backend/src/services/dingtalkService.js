@@ -176,15 +176,53 @@ class DingTalkService {
     const data = {
       code: code
     };
-
+    
     const response = await dingtalkAxios.post('/topapi/v2/user/getuserinfo', data, { params });
     const result = response.data;
-
+    
     if (result.errcode !== 0) {
       throw new Error(`获取用户信息失败: ${result.errmsg}`);
     }
-
+    
     return result.result;
+  }
+
+  // 钉钉扫码登录：用 OAuth2 tmp_auth_code 换用户信息
+  // 用于 PC 端扫码登录，code 来自 sns/getuserinfo_bycode
+  async getUserInfoByOAuthCode(tmpAuthCode) {
+    const axios = require('axios');
+    const basicToken = Buffer.from(`${this.appKey}:${this.appSecret}`).toString('base64');
+    const response = await axios.post(
+      'https://oapi.dingtalk.com/sns/getuserinfo_bycode',
+      { tmp_auth_code: tmpAuthCode },
+      {
+        headers: {
+          'Authorization': `Basic ${basicToken}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      }
+    );
+    const result = response.data;
+    if (result.errcode !== 0) {
+      throw new Error(`扫码登录验证失败: ${result.errmsg}`);
+    }
+    return result.user_info;   // { unionid, openid, nick, ... }
+  }
+
+  // 通过 unionId 获取 userid（用于扫码登录后查找数据库用户）
+  async getUserIdByUnionId(unionId) {
+    const accessToken = await this.getAccessToken();
+    const response = await dingtalkAxios.post(
+      '/topapi/v2/user/getbunionid',
+      { unionid: unionId },
+      { params: { access_token: accessToken } }
+    );
+    const result = response.data;
+    if (result.errcode !== 0) {
+      throw new Error(`通过unionId获取用户失败: ${result.errmsg}`);
+    }
+    return result.result.userid;
   }
 
   async getUserDetail(userid) {

@@ -199,4 +199,60 @@ async function updateUserRole(req, res) {
   }
 }
 
-module.exports = { login, dingtalkLogin, getUserInfo, logout, getUsers, updateUserRole };
+// 钉钉扫码登录（PC 端二维码扫码）
+async function dingtalkQrLogin(req, res) {
+  const { code } = req.body;
+  if (!code) {
+    return res.status(400).json({ success: false, message: '缺少code参数' });
+  }
+  try {
+    // 1. 用 OAuth2 tmp_auth_code 换 unionId
+    const userInfo = await dingTalkService.getUserInfoByOAuthCode(code);
+    if (!userInfo || !userInfo.unionid) {
+      return res.status(401).json({ success: false, message: '钉钉身份验证失败' });
+    }
+    // 2. 通过 unionId 获取 userid
+    const userId = await dingTalkService.getUserIdByUnionId(userInfo.unionid);
+    // 3. 查找数据库用户
+    let user = await db.User.findByDingtalkUserId(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在，请联系管理员同步钉钉用户',
+        needSync: true
+      });
+    }
+    // 4. 同步管理员标识
+    let userDetail = null;
+    try {
+      userDetail = await dingTalkService.getUserDetail(userId);
+    } catch (e) { /* ignore */ }
+    const roleList = userDetail?.role_list || [];
+    const isMasterAdmin = roleList.some(r => r.name === '主管理员');
+    if (user.is_admin !== (isMasterAdmin ? 1 : 0)) {
+      await db.User.update(user.id, { is_admin: isMasterAdmin ? 1 : 0 });
+      user = await db.User.findByDingtalkUserId(userId);
+    }
+    // 5. 生成 token
+    const token = generateToken({ id: user.id, role: user.role });
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          department: user.department,
+          title: user.title,
+          role: user.role,
+          is_admin: user.is_admin
+        }
+      }
+    });
+  } catch (error) {
+    console.error('钉钉扫码登录失败:', error);
+    res.status(500).json({ success: false, message: '登录失败', error: error.message });
+  }
+}
+
+module.exports = { login, dingtalkLogin, dingtalkQrLogin, getUserInfo, logout, getUsers, updateUserRole };

@@ -53,6 +53,7 @@ export const authAPI = {
 export const login = (name) => api.post('/auth/login', { name })
 
 export const dingtalkLogin = (code) => api.post('/auth/dingtalk-login', { code })
+export const dingtalkQrLogin = (code) => api.post('/auth/dingtalk-qr-login', { code })
 
 export const applicationAPI = {
   create: (data) => api.post('/applications', data),

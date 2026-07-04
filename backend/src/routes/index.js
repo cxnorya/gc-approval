@@ -11,6 +11,7 @@ const uploadController = require('../controllers/uploadController');
 
 router.post('/auth/login', userController.login);
 router.post('/auth/dingtalk-login', userController.dingtalkLogin);
+router.post('/auth/dingtalk-qr-login', userController.dingtalkQrLogin);
 router.get('/auth/userinfo', userController.getUserInfo);
 router.post('/auth/logout', userController.logout);
 
